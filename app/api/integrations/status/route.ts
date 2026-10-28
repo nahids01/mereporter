@@ -8,16 +8,22 @@ import { getFullProject } from '@/lib/integrations';
 // project_id it returns only the server env booleans; with one, it also
 // returns the project's integration settings and which providers actually
 // hold a token for it (a provider is "connected" only if a token row exists).
+// DATAFORSEO VISIBILITY IS ADMIN-ONLY: dataforseoConfigured is included
+// only when the caller is an admin (the two initial admin emails, via
+// lib/auth.ts). Non-admins get isAdmin:false and no dataforseoConfigured
+// field at all — no name, no boolean, no clue that it exists.
 export async function GET(req: NextRequest) {
   if (!hasServerSupabase()) {
     return NextResponse.json({ ok: false, error: 'Supabase server is not configured.' }, { status: 503 });
   }
   const auth = await authenticateRequest(req);
   if (!auth.ok) return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
+  const isAdmin = auth.profile.role === 'admin';
   const base = {
+    isAdmin,
     googleConfigured: Boolean(process.env.GOOGLE_OAUTH_CLIENT_ID && process.env.GOOGLE_OAUTH_CLIENT_SECRET),
     bingConfigured: Boolean(process.env.BING_API_KEY),
-    dataforseoConfigured: Boolean(process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD),
+    ...(isAdmin ? { dataforseoConfigured: Boolean(process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD) } : {}),
     resendConfigured: Boolean(process.env.RESEND_API_KEY),
   };
   const projectId = new URL(req.url).searchParams.get('project_id') ?? '';
