@@ -165,6 +165,25 @@ async function fetchGbp(service: SupabaseClient, project: FullProject, failures:
   return ok;
 }
 
+/** DataForSEO only, for the one-click "Run full live check" button and for
+ *  any caller that wants live ranks + grids without the other sources.
+ *  Every stored SERP keyword gets one live check; every stored GBP keyword
+ *  gets one 3x3 grid (9 searches). A failed keyword stores nothing for that
+ *  keyword and is recorded in failures, never blocking the others.
+ *  searchesUsed matches the usage rows actually logged (1 per successful
+ *  SERP check, 9 per successful GBP grid). Callers must check
+ *  isDataForSEOConfigured() first; this function returns 0s if unset. */
+export async function fetchDataForSEO(service: SupabaseClient, project: FullProject): Promise<{ serpChecked: number; gbpChecked: number; searchesUsed: number; failures: string[] }> {
+  const failures: string[] = [];
+  let serpChecked = 0; let gbpChecked = 0;
+  if (!isDataForSEOConfigured()) return { serpChecked, gbpChecked, searchesUsed: 0, failures };
+  try { serpChecked = await fetchSerp(service, project, failures); }
+  catch (e) { failures.push(`SERP: ${e instanceof Error ? e.message : 'fetch failed'}`); }
+  try { gbpChecked = await fetchGbp(service, project, failures); }
+  catch (e) { failures.push(`GBP grid: ${e instanceof Error ? e.message : 'fetch failed'}`); }
+  return { serpChecked, gbpChecked, searchesUsed: serpChecked * 1 + gbpChecked * 9, failures };
+}
+
 export type AutoFetchResult = { fetched: string[]; failures: string[]; skipped: string[] };
 
 /** Auto-fetch everything a project has actually connected, and nothing else.
