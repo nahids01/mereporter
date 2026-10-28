@@ -15,7 +15,7 @@ export async function apiFetch(path: string, method = 'GET', body?: unknown): Pr
   return { status: res.status, json: json as Record<string, unknown> };
 }
 
-export type ProjectRow = { id: string; name: string; website_url: string; location: string | null };
+export type ProjectRow = { id: string; name: string; website_url: string; location: string | null; gsc_site_url?: string | null; ga4_property_id?: string | null; bing_site_url?: string | null; created_at?: string };
 export async function loadProjects(): Promise<ProjectRow[]> {
   const { status, json } = await apiFetch('/api/projects');
   if (status !== 200) throw new Error(String(json.error ?? `Projects load failed (${status})`));
