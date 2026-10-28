@@ -7,6 +7,7 @@ function notConfigured() { return NextResponse.json({ ok: false, error: 'Supabas
 async function auth(req: NextRequest) { const a = await authenticateRequest(req); if (!a.ok) return { res: NextResponse.json({ ok: false, error: a.error }, { status: a.status }), profile: null }; return { res: null, profile: a.profile }; }
 
 import { isDataForSEOConfigured, liveGbpGrid, gridPoints } from '@/lib/dataforseo';
+import { logDataForSEOUsage } from '@/lib/dataforseo-usage';
 import { geocodePlace } from '@/lib/geocode';
 import { projectDomain } from '@/lib/project-access';
 // GET ?project_id= — stored grid snapshots.
@@ -22,7 +23,9 @@ export async function GET(req: NextRequest) {
   const project = await getOwnedProject(supabase, projectId, profile);
   if (!project) return NextResponse.json({ ok: false, error: 'Project not found.' }, { status: 404 });
   const { data } = await supabase.from('gbp_grid_snapshots').select('*').eq('project_id', projectId).order('created_at', { ascending: false }).limit(50);
-  return NextResponse.json({ ok: true, snapshots: data ?? [], dataforseoConfigured: isDataForSEOConfigured() });
+  // DATAFORSEO VISIBILITY IS ADMIN-ONLY: only admins get the configured flag.
+  const isAdmin = profile.role === 'admin';
+  return NextResponse.json({ ok: true, isAdmin, snapshots: data ?? [], ...(isAdmin ? { dataforseoConfigured: isDataForSEOConfigured() } : {}) });
 }
 export async function POST(req: NextRequest) {
   if (!hasServerSupabase()) return notConfigured();
@@ -42,13 +45,14 @@ export async function POST(req: NextRequest) {
   }
   if (lat === null || lng === null) return NextResponse.json({ ok: false, error: 'lat/lng or a geocodable place is required for the grid centre.' }, { status: 400 });
   if (!isDataForSEOConfigured()) {
-    return NextResponse.json({ ok: true, configured: false, centre: { lat, lng, name: centreName }, points: [], note: 'DataForSEO is not configured (DATAFORSEO_LOGIN / DATAFORSEO_PASSWORD unset). Grid centre was resolved, but no grid rank was checked and nothing was stored.' });
+    return NextResponse.json({ ok: true, configured: false, centre: { lat, lng, name: centreName }, points: [], note: 'Live grid is not set up yet. Grid centre was resolved, but no grid rank was checked and nothing was stored.' });
   }
   const points = gridPoints(lat, lng, typeof body.step_km === 'number' ? body.step_km : 2);
   const live = await liveGbpGrid(body.keyword, projectDomain(project.website_url), points);
   if (!live.configured) return NextResponse.json({ ok: true, configured: false });
   if (!live.ok) return NextResponse.json({ ok: false, error: live.error }, { status: 502 });
+  await logDataForSEOUsage(supabase, body.project_id, 'gbp', body.keyword, 9);
   const { data, error } = await supabase.from('gbp_grid_snapshots').insert({ project_id: body.project_id, keyword: body.keyword, centre_lat: lat, centre_lng: lng, centre_name: centreName, grid_json: live.data.points, created_at: new Date().toISOString() }).select().single();
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
-  return NextResponse.json({ ok: true, configured: true, snapshot: data, points: live.data.points, note: 'Grid ranks are live DataForSEO Google Maps results per grid point. Points where the business was not found are rank null (no-data), never estimated.' });
+  return NextResponse.json({ ok: true, configured: true, snapshot: data, points: live.data.points, note: 'Grid ranks are live map results per grid point. Points where the business was not found are rank null (no-data), never estimated.' });
 }
