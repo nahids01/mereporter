@@ -34,13 +34,14 @@ export default function Home() {
         .mr-card { border: 1px solid #eee; border-radius: 16px; padding: 18px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.04); }
         .mr-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
         .mr-builder { display: flex; gap: 28px; align-items: center; flex-wrap: wrap; background: #fff7f1; border: 1px solid #ffe0c7; border-radius: 20px; padding: 24px; margin-top: 36px; }
+        .mr-builder-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 20px; }
         .mr-photo-wrap { position: relative; width: 240px; height: 240px; margin: 0 auto; animation: mrFloat 5s ease-in-out infinite; }
         .mr-photo { width: 240px; height: 240px; object-fit: cover; border-radius: 50%; animation: mrGlow 4s ease-in-out infinite; }
         .mr-chip { position: absolute; background: #fff; border: 1px solid #ffe0c7; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; box-shadow: 0 4px 14px rgba(0,0,0,.08); animation: mrChip 4s ease-in-out infinite; white-space: nowrap; }
         .mr-bars { display: flex; align-items: flex-end; gap: 6px; height: 44px; justify-content: center; margin-top: 14px; }
         .mr-bar { width: 18px; border-radius: 6px 6px 0 0; background: ${brand}; transform-origin: bottom; animation: mrBar 1.2s ease-out both; }
         @media (max-width: 800px) {
-          .mr-grid, .mr-steps { grid-template-columns: 1fr; }
+          .mr-grid, .mr-steps, .mr-builder-grid { grid-template-columns: 1fr; }
           .mr-hero { padding-top: 16px; }
         }
       `}</style>
@@ -67,9 +68,6 @@ export default function Home() {
             </a>
             <a href="/login" style={{ border: `2px solid ${brand}`, color: '#c25a12', padding: '10px 22px', borderRadius: 999, textDecoration: 'none', fontWeight: 700 }}>
               Sign up free
-            </a>
-            <a href="/dashboard" style={{ color: '#333', padding: '12px 8px', fontWeight: 700 }}>
-              Go to Dashboard →
             </a>
           </div>
           <p style={{ color: '#666', fontSize: 14, marginTop: 16 }}>
@@ -118,38 +116,65 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Builder */}
-      <section className="mr-builder">
-        <div style={{ position: 'relative', margin: '0 auto' }}>
-          <div className="mr-photo-wrap">
-            <img src="/amran-ahmed.jpg" alt="Md. Amran Ahmed" className="mr-photo" />
-            <span className="mr-chip" style={{ top: 8, left: -18 }}>SEO ↗</span>
-            <span className="mr-chip" style={{ top: 70, right: -24, animationDelay: '1s' }}>AI Search</span>
-            <span className="mr-chip" style={{ bottom: 24, left: -12, animationDelay: '2s' }}>Local SEO</span>
-            <span className="mr-chip" style={{ bottom: 4, right: 8, animationDelay: '.5s' }}>Rank Tracker ↑</span>
+      {/* Builders — public section, no dashboard/setup links */}
+      <section style={{ marginTop: 36 }}>
+        <p style={{ color: brand, fontWeight: 800, letterSpacing: 1, margin: 0, fontSize: 13, textAlign: 'center' }}>BUILT BY</p>
+        <h2 style={{ fontSize: 30, margin: '8px 0 4px', textAlign: 'center' }}>Built by Nurul Nahid and Md. Amran Ahmed</h2>
+        <p style={{ color: '#555', lineHeight: 1.65, textAlign: 'center', maxWidth: 720, margin: '0 auto' }}>
+          MeReporter was built for SEO experts who need reporting they can stand behind: real
+          data, clear local visibility, and monthly reports that show the work — without
+          inventing a single rank.
+        </p>
+        <div className="mr-builder-grid">
+          <div className="mr-builder">
+            <div style={{ position: 'relative', margin: '0 auto' }}>
+              <div className="mr-photo-wrap">
+                <img src="/nurul-nahid.jpg" alt="Nurul Nahid" className="mr-photo" />
+                <span className="mr-chip" style={{ top: 8, left: -18 }}>SEO ↗</span>
+                <span className="mr-chip" style={{ top: 70, right: -24, animationDelay: '1s' }}>AI Search</span>
+                <span className="mr-chip" style={{ bottom: 24, left: -12, animationDelay: '2s' }}>Local SEO</span>
+                <span className="mr-chip" style={{ bottom: 4, right: 8, animationDelay: '.5s' }}>Rank Tracker ↑</span>
+              </div>
+            </div>
+            <div style={{ flex: '1 1 260px', minWidth: 240 }}>
+              <h3 style={{ fontSize: 24, margin: '8px 0' }}>Nurul Nahid</h3>
+              <p style={{ fontSize: 17, color: '#444', margin: '0 0 12px' }}>Senior SEO Expert &amp; Web Strategist</p>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <a href="https://www.linkedin.com/in/nurulnahid-uk-seo-expert" target="_blank" rel="noopener noreferrer" style={{ background: brand, color: '#fff', padding: '10px 18px', borderRadius: 999, textDecoration: 'none', fontWeight: 700 }}>LinkedIn</a>
+                <a href="https://www.instagram.com/seonurulnahid" target="_blank" rel="noopener noreferrer" style={{ border: `2px solid ${brand}`, color: '#c25a12', padding: '8px 16px', borderRadius: 999, textDecoration: 'none', fontWeight: 700 }}>Instagram</a>
+              </div>
+            </div>
+          </div>
+          <div className="mr-builder">
+            <div style={{ position: 'relative', margin: '0 auto' }}>
+              <div className="mr-photo-wrap">
+                <img src="/amran-ahmed.jpg" alt="Md. Amran Ahmed" className="mr-photo" />
+                <span className="mr-chip" style={{ top: 8, left: -18 }}>SEO ↗</span>
+                <span className="mr-chip" style={{ top: 70, right: -24, animationDelay: '1s' }}>AI Search</span>
+                <span className="mr-chip" style={{ bottom: 24, left: -12, animationDelay: '2s' }}>Local SEO</span>
+                <span className="mr-chip" style={{ bottom: 4, right: 8, animationDelay: '.5s' }}>Rank Tracker ↑</span>
+              </div>
+            </div>
+            <div style={{ flex: '1 1 260px', minWidth: 240 }}>
+              <h3 style={{ fontSize: 24, margin: '8px 0' }}>Md. Amran Ahmed</h3>
+              <p style={{ fontSize: 17, color: '#444', margin: '0 0 12px' }}>SEO &amp; AI Search Expert with over 5 years of experience</p>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <a href="https://www.linkedin.com/in/amranahmedseo/" target="_blank" rel="noopener noreferrer" style={{ background: brand, color: '#fff', padding: '10px 18px', borderRadius: 999, textDecoration: 'none', fontWeight: 700 }}>LinkedIn</a>
+                <a href="https://www.instagram.com/amranahmedseo/" target="_blank" rel="noopener noreferrer" style={{ border: `2px solid ${brand}`, color: '#c25a12', padding: '8px 16px', borderRadius: 999, textDecoration: 'none', fontWeight: 700 }}>Instagram</a>
+              </div>
+            </div>
           </div>
         </div>
-        <div style={{ flex: '1 1 300px', minWidth: 280 }}>
-          <p style={{ color: brand, fontWeight: 800, letterSpacing: 1, margin: 0, fontSize: 13 }}>BUILT BY</p>
-          <h2 style={{ fontSize: 30, margin: '8px 0' }}>Md. Amran Ahmed</h2>
-          <p style={{ fontSize: 18, color: '#444', margin: '0 0 12px' }}>SEO &amp; AI Search Expert with over 5 years of experience</p>
-          <p style={{ color: '#555', lineHeight: 1.65, margin: 0 }}>
-            MeReporter was built for SEO experts who need reporting they can stand behind: real
-            data, clear local visibility, and monthly reports that show the work — without
-            inventing a single rank.
-          </p>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 18 }}>
-            <a href="/login" style={{ background: brand, color: '#fff', padding: '10px 20px', borderRadius: 999, textDecoration: 'none', fontWeight: 700 }}>Start with MeReporter</a>
-            <a href="/setup" style={{ color: '#333', fontWeight: 700, padding: '10px 4px' }}>Setup &amp; Team (admin only) →</a>
-          </div>
+        <div style={{ textAlign: 'center', marginTop: 20 }}>
+          <a href="/login" style={{ background: brand, color: '#fff', padding: '10px 20px', borderRadius: 999, textDecoration: 'none', fontWeight: 700 }}>Start with MeReporter</a>
         </div>
       </section>
 
-      {/* Footer */}
+      {/* Footer — public only, no dashboard/setup links */}
       <footer style={{ marginTop: 40, borderTop: '1px solid #eee', paddingTop: 20, display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <strong>MeReporter</strong> — authentic SEO reporting.
-          <span style={{ color: '#666' }}> <a href="/dashboard">Dashboard</a> · <a href="/setup">Setup</a> · <a href="/api/health">API health</a></span>
+          <span style={{ color: '#666' }}> <a href="/api/health">API health</a></span>
         </div>
         <p style={{ color: '#888', fontSize: 12, maxWidth: 560, margin: 0, lineHeight: 1.5 }}>
           Note: live SERP ranks, live GBP grid, live GSC/GA4/Bing sync and monthly email sending
