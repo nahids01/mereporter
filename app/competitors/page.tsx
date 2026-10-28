@@ -1,7 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useProjects, ProjectPicker, callApi, showError } from '@/lib/tool-page';
+import { useProjects, callApi, showError } from '@/lib/tool-page';
 import { apiFetch } from '@/lib/client-api';
+import { AppShell, Panel, PrimaryButton, GhostButton, Field, inputStyle, tableStyle, thStyle, tdStyle, MUTED, DIM, EmptyState } from '@/lib/app-shell';
+
 type Row = Record<string, unknown>;
 export default function Page() {
   const { projects, projectId, setProjectId, error } = useProjects();
@@ -17,20 +19,43 @@ export default function Page() {
   useEffect(() => { load(); }, [projectId]);
   async function run() {
     setBusy(true); setMsg('');
-    try { await callApi('/api/competitors', 'POST', { project_id: projectId, domain, name: name || null }); setMsg('Competitor added (stored row only — no rank or traffic is invented for it).'); await load(); }
+    try { await callApi('/api/competitors', 'POST', { project_id: projectId, domain: domain.trim(), name: name.trim() || null }); setMsg('Competitor saved.'); setDomain(''); setName(''); await load(); }
     catch (e) { setMsg(showError(e)); }
     setBusy(false);
   }
-  if (error) return <p>{error} — sign in at <a href="/login">/login</a> first.</p>;
-  return (<div><h1>Competitors</h1>
-    <p>Stored competitors only. MeReporter does not invent competitor ranks or traffic: a competitor row is just a domain you added. Compare it against your own live ranks on the Rank Tracker page.</p>
-    <ProjectPicker projects={projects} value={projectId} onChange={setProjectId} />
-    <div style={{ marginTop: 12 }}>
-      <label>Competitor domain<br /><input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="competitor.com" style={{ width: '100%', padding: 8 }} /></label><br /><br />
-      <label>Name (optional)<br /><input value={name} onChange={(e) => setName(e.target.value)} style={{ width: '100%', padding: 8 }} /></label><br /><br />
-      <button onClick={run} disabled={busy}>{busy ? 'Working…' : 'Add competitor'}</button>
-    </div>
-    <pre style={{ whiteSpace: 'pre-wrap' }}>{msg}</pre>
-    {rows.length === 0 ? <p>No competitors yet — honest empty state.</p> : <ul>{rows.map((r) => <li key={String(r.id)}>{String(r.domain)}{r.name ? ` — ${String(r.name)}` : ''}</li>)}</ul>}
-  </div>);
+  async function remove(id: string) {
+    setBusy(true);
+    try { await apiFetch(`/api/competitors?id=${id}`, 'DELETE'); await load(); } catch (e) { setMsg(showError(e)); }
+    setBusy(false);
+  }
+  if (error) return <AppShell active="competitors" title="Competitors"><Panel>{error} — sign in at <a href="/login" style={{ color: '#FF863B', fontWeight: 700 }}>/login</a> first.</Panel></AppShell>;
+  return (
+    <AppShell active="competitors" title="Competitors" subtitle="Businesses you want to compare against. A competitor here is just a website you added — no rank or traffic is invented for it. Compare it against your own live ranks on the Keywords page.">
+      {projects.length === 0 ? <EmptyState title="No projects yet" text="Add a website first, then add its competitors here." actionHref="/projects" actionLabel="Create a project" /> : (
+        <>
+          <Panel style={{ marginBottom: 16 }}>
+            <Field label="Website">
+              <select value={projectId} onChange={(e) => setProjectId(e.target.value)} style={inputStyle}>
+                {projects.map((p) => <option key={p.id} value={p.id}>{p.name} — {p.website_url}</option>)}
+              </select>
+            </Field>
+          </Panel>
+          <Panel style={{ marginBottom: 16 }}>
+            <h3 style={{ margin: '0 0 14px' }}>Add a competitor</h3>
+            <Field label="Competitor website"><input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="competitor.com" style={inputStyle} /></Field>
+            <Field label="Name (optional)"><input value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} /></Field>
+            <PrimaryButton onClick={run} disabled={busy || !domain.trim()}>{busy ? 'Working…' : 'Add competitor'}</PrimaryButton>
+            {msg ? <p style={{ color: MUTED }}>{msg}</p> : null}
+          </Panel>
+          <Panel>
+            <h3 style={{ margin: '0 0 12px' }}>Competitors ({rows.length})</h3>
+            {rows.length === 0 ? <p style={{ color: DIM }}>No competitors yet.</p> : (
+              <table style={tableStyle}><thead><tr><th style={thStyle}>Website</th><th style={thStyle}>Name</th><th style={thStyle}></th></tr></thead>
+              <tbody>{rows.map((r) => <tr key={String(r.id)}><td style={tdStyle}>{String(r.domain)}</td><td style={tdStyle}>{String(r.name ?? '')}</td><td style={tdStyle}><GhostButton onClick={() => remove(String(r.id))} disabled={busy}>Remove</GhostButton></td></tr>)}</tbody></table>
+            )}
+          </Panel>
+        </>
+      )}
+    </AppShell>
+  );
 }
