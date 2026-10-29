@@ -43,10 +43,21 @@ export async function POST(req: NextRequest) {
   const project = await getOwnedProject(supabase, body.project_id, profile);
   if (!project) return NextResponse.json({ ok: false, error: 'Project not found.' }, { status: 404 });
   let kw = (await supabase.from('keywords').select('*').eq('project_id', body.project_id).eq('kind', kind).eq('keyword', body.keyword).single()).data;
+  const attrs: Record<string, unknown> = {};
+  for (const key of ['country', 'language', 'search_engine', 'device', 'translation', 'ranking_url'] as const) {
+    const v = body?.[key] ?? body?.[key === 'search_engine' ? 'searchEngine' : key];
+    if (typeof v === 'string' && v.trim()) attrs[key] = v.trim();
+  }
+  if (typeof body?.search_volume === 'number') attrs.search_volume = body.search_volume;
+  if (typeof body?.tags === 'string' && body.tags.trim()) attrs.tags = body.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+  if (Array.isArray(body?.tags)) attrs.tags = body.tags;
   if (!kw) {
-    const ins = await supabase.from('keywords').insert({ project_id: body.project_id, kind, keyword: body.keyword, rank: null }).select().single();
+    const ins = await supabase.from('keywords').insert({ project_id: body.project_id, kind, keyword: body.keyword, rank: null, ...attrs }).select().single();
     if (ins.error) return NextResponse.json({ ok: false, error: ins.error.message }, { status: 400 });
     kw = ins.data;
+  } else if (Object.keys(attrs).length) {
+    await supabase.from('keywords').update(attrs).eq('id', kw.id);
+    kw = { ...kw, ...attrs };
   }
   if (!isDataForSEOConfigured()) {
     return NextResponse.json({ ok: true, configured: false, keyword: kw, rank: null, note: 'Live rank is not set up yet. No live check was run and no rank was stored. This keyword shows no-data until it is set up.' });
