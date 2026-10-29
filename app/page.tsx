@@ -1,3 +1,14 @@
+'use client';
+// Public visitors see the marketing page below (PublicHome). Signed-in users
+// see Pinned items instead — their projects as pinned cards, each showing the
+// domain and its average position from /api/rank. Pinned state is stored in
+// the browser; nothing here is invented.
+import { useEffect, useState } from 'react';
+import { useProjects } from '@/lib/tool-page';
+import { apiFetch, type ProjectRow } from '@/lib/client-api';
+import { getBrowserSupabase, isSupabaseConfigured } from '@/lib/supabase';
+import { AppShell, Panel, PrimaryButton, GhostButton, MUTED, DIM, BRAND } from '@/lib/app-shell';
+
 const brand = '#FF863B';
 const dark = '#1a1a1a';
 
@@ -18,7 +29,7 @@ const steps = [
   { n: '3', title: 'Get the monthly report', text: 'Each month a draft report is built from that project’s verified data — no-data stays no-data, never invented.' },
 ];
 
-export default function Home() {
+function PublicHome() {
   return (
     <div>
       <style>{`
@@ -184,4 +195,150 @@ export default function Home() {
       </footer>
     </div>
   );
+}
+
+type AvgRow = { project: ProjectRow; avg: string | null; kwCount: number };
+
+function domainOf(url: string, fallback: string): string {
+  try { return new URL(url).hostname.replace(/^www\./i, ''); } catch { return fallback; }
+}
+
+function PinnedHome() {
+  const { projects, error } = useProjects();
+  const [grouping, setGrouping] = useState<'Day' | 'Week' | 'Month'>('Day');
+  const [rows, setRows] = useState<AvgRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [pinned, setPinned] = useState<string[] | null>(null);
+  const [toPin, setToPin] = useState('');
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem('mereporter-pinned-ids');
+      const parsed = raw ? (JSON.parse(raw) as unknown) : null;
+      if (Array.isArray(parsed) && parsed.every((x) => typeof x === 'string')) setPinned(parsed);
+      else setPinned(null);
+    } catch { setPinned(null); }
+  }, []);
+  useEffect(() => {
+    if (projects.length && pinned === null) setPinned(projects.map((p) => p.id));
+  }, [projects, pinned]);
+  useEffect(() => {
+    if (!projects.length) { setRows([]); return; }
+    const days = grouping === 'Day' ? 1 : grouping === 'Week' ? 7 : 30;
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    (async () => {
+      setLoading(true);
+      const out: AvgRow[] = [];
+      for (const project of projects) {
+        try {
+          const { status, json } = await apiFetch(`/api/rank?project_id=${project.id}`);
+          if (status >= 400) { out.push({ project, avg: null, kwCount: 0 }); continue; }
+          const kws = (json.keywords as Record<string, unknown>[] | undefined) ?? [];
+          const serp = kws.filter((k) => k.kind === 'serp');
+          const snaps = (json.snapshots as Record<string, unknown>[] | undefined) ?? [];
+          const inWindow = snaps.filter((s) => {
+            const t = Date.parse(String(s.checked_at ?? ''));
+            return Number.isFinite(t) && t >= cutoff && typeof s.rank === 'number' && s.kind !== 'gbp';
+          });
+          // Prefer history inside the grouping window; fall back to the latest
+          // recorded rank per keyword only when the window has no history, and
+          // say so via "No data" when there is no rank at all.
+          const ranks = inWindow.length
+            ? inWindow.map((s) => s.rank as number)
+            : serp.map((k) => k.rank).filter((r): r is number => typeof r === 'number');
+          out.push({
+            project,
+            avg: ranks.length ? (ranks.reduce((a, b) => a + b, 0) / ranks.length).toFixed(1) : null,
+            kwCount: serp.length,
+          });
+        } catch { out.push({ project, avg: null, kwCount: 0 }); }
+      }
+      setRows(out);
+      setLoading(false);
+    })();
+  }, [projects, grouping]);
+
+  function savePinned(next: string[]) {
+    setPinned(next);
+    try { window.localStorage.setItem('mereporter-pinned-ids', JSON.stringify(next)); } catch { /* ignore */ }
+  }
+  const pinnedSet = new Set(pinned ?? projects.map((p) => p.id));
+  const pinnedRows = rows.filter((r) => pinnedSet.has(r.project.id));
+  const unpinned = projects.filter((p) => !pinnedSet.has(p.id));
+
+  if (error) {
+    return (
+      <AppShell active="dashboard" title="Pinned items" subtitle="Your pinned URLs, views and projects.">
+        <Panel>{error} — sign in at <a href="/login" style={{ color: BRAND, fontWeight: 700 }}>/login</a> first.</Panel>
+      </AppShell>
+    );
+  }
+  return (
+    <AppShell active="dashboard" title="Pinned items" subtitle="Pin a URL, view or project to keep it here. Average position comes from recorded ranks only — no-data stays no-data.">
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20 }}>
+        <span style={{ color: MUTED, fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Group by</span>
+        {(['Day', 'Week', 'Month'] as const).map((g) => (
+          <button
+            key={g}
+            onClick={() => setGrouping(g)}
+            style={{ background: grouping === g ? BRAND : 'transparent', color: grouping === g ? '#000' : '#fff', border: `1px solid ${grouping === g ? BRAND : '#2a2a2a'}`, borderRadius: 999, padding: '7px 16px', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}
+          >
+            {g}
+          </button>
+        ))}
+      </div>
+      {loading ? <p style={{ color: MUTED }}>Loading pinned items…</p> : null}
+      {projects.length === 0 ? (
+        <Panel style={{ textAlign: 'center', padding: 32 }}>
+          <h2 style={{ margin: '0 0 8px', fontSize: 22 }}>Nothing pinned yet</h2>
+          <p style={{ margin: '0 0 20px', color: MUTED, lineHeight: 1.6 }}>Add your first URL, then pin it here.</p>
+          <PrimaryButton><a href="/projects?step=website" style={{ color: '#000', textDecoration: 'none' }}>Add a URL</a></PrimaryButton>
+        </Panel>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
+          {pinnedRows.map(({ project, avg, kwCount }) => (
+            <Panel key={project.id}>
+              <h3 style={{ margin: '0 0 6px', wordBreak: 'break-all' }}>{domainOf(project.website_url, project.name)}</h3>
+              <p style={{ margin: '0 0 4px', color: MUTED, fontSize: 13 }}>{project.name}</p>
+              <p style={{ margin: '0 0 12px', lineHeight: 1.6 }}>
+                Average position ({grouping}): <strong>{avg ?? 'No data'}</strong>
+                <span style={{ color: DIM, fontSize: 13 }}> · {kwCount} SERP keyword{kwCount === 1 ? '' : 's'} tracked</span>
+              </p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <a href={`/dashboard?project_id=${project.id}`} style={{ color: BRAND, fontWeight: 700, fontSize: 13 }}>Open dashboard →</a>
+                <button onClick={() => savePinned([...pinnedSet].filter((id) => id !== project.id))} style={{ background: 'transparent', color: DIM, border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Unpin</button>
+              </div>
+            </Panel>
+          ))}
+          <Panel style={{ borderStyle: 'dashed', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <h3 style={{ margin: '0 0 8px' }}>+ Add item</h3>
+            <p style={{ color: MUTED, lineHeight: 1.6, margin: '0 0 12px', fontSize: 14 }}>Pin a URL, view or project from your own projects.</p>
+            {unpinned.length === 0 ? (
+              <>
+                <p style={{ color: DIM, fontSize: 13, lineHeight: 1.6, margin: '0 0 12px' }}>All your projects are already pinned. Add a new URL to pin something else.</p>
+                <div><GhostButton href="/projects?step=website">Add a URL</GhostButton></div>
+              </>
+            ) : (
+              <>
+                <select value={toPin || unpinned[0]?.id || ''} onChange={(e) => setToPin(e.target.value)} style={{ background: '#0f0f0f', color: '#fff', border: '1px solid #2a2a2a', borderRadius: 10, padding: '10px 12px', fontSize: 14, marginBottom: 12 }}>
+                  {unpinned.map((p) => <option key={p.id} value={p.id}>{p.name} — {domainOf(p.website_url, p.name)}</option>)}
+                </select>
+                <div><PrimaryButton onClick={() => { const id = toPin || unpinned[0]?.id; if (id) savePinned([...pinnedSet, id]); }}>Pin item</PrimaryButton></div>
+              </>
+            )}
+          </Panel>
+        </div>
+      )}
+    </AppShell>
+  );
+}
+
+export default function Home() {
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!isSupabaseConfigured()) { setSignedIn(false); return; }
+    getBrowserSupabase().auth.getSession().then(({ data }) => setSignedIn(Boolean(data.session))).catch(() => setSignedIn(false));
+  }, []);
+  if (signedIn === null) return <div style={{ padding: 32, color: '#666' }}>Loading…</div>;
+  return signedIn ? <PinnedHome /> : <PublicHome />;
 }
