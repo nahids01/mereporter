@@ -11,8 +11,8 @@ export async function GET(req: NextRequest) {
   const { res, profile } = await auth(req); if (res || !profile) return res!;
   const supabase = getServerSupabase();
   const q = profile.role === 'admin'
-    ? supabase.from('projects').select('id, owner_id, name, website_url, location, created_at').order('created_at')
-    : supabase.from('projects').select('id, owner_id, name, website_url, location, created_at').eq('owner_id', profile.id).order('created_at');
+    ? supabase.from('projects').select('*').order('created_at')
+    : supabase.from('projects').select('*').eq('owner_id', profile.id).order('created_at');
   const { data, error } = await q;
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true, projects: data ?? [] });
@@ -27,7 +27,12 @@ export async function POST(req: NextRequest) {
   if (!url.startsWith('http://') && !url.startsWith('https://')) url = `https://${url}`;
   try { new URL(url); } catch { return NextResponse.json({ ok: false, error: 'website_url is not a valid URL.' }, { status: 400 }); }
   const supabase = getServerSupabase();
-  const { data, error } = await supabase.from('projects').insert({ owner_id: profile.id, name: body.name, website_url: url, location: body.location ?? null }).select().single();
+  const insert: Record<string, unknown> = { owner_id: profile.id, name: body.name, website_url: url, location: body.location ?? null };
+  for (const key of ['gsc_site_url', 'ga4_property_id', 'bing_site_url', 'country', 'language', 'url_group', 'business_name'] as const) {
+    if (typeof body[key] === 'string' && body[key].trim()) insert[key] = body[key].trim();
+  }
+  if (body.is_local_business === true) insert.is_local_business = true;
+  const { data, error } = await supabase.from('projects').insert(insert).select().single();
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true, project: data });
 }
